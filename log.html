@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Daño Detallado (EVE Online) con Selección y DPS Activo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            padding-top: 30px;
+            padding-bottom: 30px;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 1000px; /* Aumenta el ancho */
+            width: 95%;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .custom-file-upload {
+            border: 2px solid #3498db;
+            color: #3498db;
+            background-color: #eaf7ff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .custom-file-upload:hover {
+            background-color: #3498db;
+            color: white;
+        }
+        .file-name {
+            font-size: 0.9em;
+            color: #777;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        .loading-message {
+            margin-top: 15px;
+            font-style: italic;
+            color: #888;
+        }
+        .result-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: left;
+        }
+        .result-section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .result-section p {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2ecc71;
+            text-align: center;
+        }
+        .damage-list-container {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .damage-list-wrapper {
+            flex: 1;
+            min-width: 45%;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .damage-list {
+            list-style-type: none;
+            padding: 0;
+            max-height: 400px; 
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #fcfcfc;
+        }
+        .damage-list li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+        }
+        .damage-list li:last-child {
+            border-bottom: none;
+        }
+        .damage-list li .main-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 2px;
+            align-items: center;
+        }
+        .damage-list li .name-weapon {
+            font-weight: bold;
+            color: #34495e;
+            flex: 2;
+            text-align: left;
+            word-break: break-word;
+            padding-right: 10px;
+        }
+        .damage-list li .total-damage {
+            font-weight: bold;
+            color: #e74c3c;
+            white-space: nowrap;
+            padding-left: 10px;
+        }
+        .damage-list li .stats-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.85em;
+            color: #555;
+            margin-top: 2px;
+            padding-left: 0;
+        }
+        .damage-list li .stat-item {
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .damage-list li .stat-item:first-child { text-align: left; }
+        .damage-list li .stat-item:last-child { text-align: right; }
+
+        .damage-list li .ship-type {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            font-style: italic;
+            width: 100%;
+            text-align: left;
+            margin-top: 2px;
+        }
+        .add-remove-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #3498db;
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            padding: 0 5px;
+            line-height: 1;
+        }
+        .add-remove-btn:hover {
+            color: #2980b9;
+        }
+        /* Estilos específicos para la lista de "Enemigos Seleccionados" */
+        #selectedEnemiesList li {
+            padding-right: 25px;
+        }
+        #selectedEnemiesList .add-remove-btn {
+            color: #e74c3c;
+        }
+        #selectedEnemiesList .add-remove-btn:hover {
+            color: #c0392b;
+        }
+
+        .selected-summary {
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+        }
+        .selected-summary p {
+            margin: 5px 0;
+            color: #2ecc71;
+        }
+        .dps-input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap; /* Permite que se envuelva en pantallas pequeñas */
+            margin-top: 5px;
+        }
+        .dps-input-group p {
+            margin: 0 5px;
+            white-space: nowrap;
+        }
+        .dps-input-group input {
+            width: 60px; /* Ajusta el ancho del input */
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 1em;
+            -moz-appearance: textfield; /* Para Firefox */
+        }
+        .dps-input-group input::-webkit-outer-spin-button,
+        .dps-input-group input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .final-dps-value {
+            color: #3498db; /* Un color distinto para el resultado final */
+            font-size: 1.2em;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Análisis de Daño Detallado (EVE Online) con Selección y DPS Activo</h1>
+        <label for="fileInput" class="custom-file-upload">
+            Seleccionar Archivo de Log
+        </label>
+        <input type="file" id="fileInput" accept=".txt">
+        <div class="file-name" id="fileNameDisplay">Ningún archivo seleccionado</div>
+        <div class="loading-message" id="loadingMessage"></div>
+
+        <div class="result-section">
+            <h2>Resumen de Daño Total del Log</h2>
+            <p id="totalShipDamageResult">El daño total de TODAS las naves enemigas es: 0</p>
+            <p id="totalDroneDamageResult">El daño total de los Drones es: 0</p>
+            <p id="globalCombatDuration">Duración Total de Combate en Log: 0 segundos</p>
+        </div>
+
+        <div class="damage-list-container">
+            <div class="damage-list-wrapper">
+                <h2>Daño por Nave Enemiga</h2>
+                <ul id="shipDamageDetailsList" class="damage-list">
+                    <li><span>(Carga un archivo para ver los detalles de naves)</span></li>
+                </ul>
+            </div>
+
+            <div class="damage-list-wrapper">
+                <h2>Enemigos Seleccionados</h2>
+                <ul id="selectedEnemiesList" class="damage-list">
+                    <li><span>(Usa el botón '+' para añadir enemigos aquí)</span></li>
+                </ul>
+                <div class="selected-summary">
+                    <p id="totalSelectedDamage">Daño Total Seleccionado: 0</p>
+                    <div class="dps-input-group">
+                        <p>DPS Total Seleccionado:</p>
+                        <span id="baseTotalSelectedDps">0.00</span>
+                        <p>x</p>
+                        <input type="number" id="dpsMultiplierInput" value="1" min="0" step="0.1">
+                        <p>=</p>
+                        <span id="finalTotalSelectedDps" class="final-dps-value">0.00</span>
+                    </div>
+                    <p id="totalSelectedAvgDamage">Daño Promedio Total Seleccionado: 0.00</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h2>Daño por Drone (General)</h2>
+            <ul id="droneDamageDetailsList" class="damage-list">
+                <li><span>(Carga un archivo para ver los detalles de drones)</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Lista de drones comunes en EVE Online para una mejor diferenciación
+        const EVE_DRONES = new Set([
+            "Acolyte", "Hornet", "Hobgoblin", "Warrior", "Federation Navy Comet",
+            "Hammerhead", "Vespa", "Berserker", "Wasp", "Garde", "Gecko",
+            "Ogre", "Curator", "Sentry", "Warrior II", "Acolyte II", "Hobgoblin II", "Hammerhead II", "Vespa II", "Berserker II", "Wasp II", "Garde II", "Ogre II",
+            "Bouncer", "Warden", "Garde", "Curator", // Sentry Drones
+            "Praetor", "Ecklar", "Vindicator", "Foxfire", // Logistics Drones
+            "Salvage Drone", "Mining Drone", "Excavator Drone", // Utility/Mining Drones
+            "Light Fighter", "Heavy Fighter", "Support Fighter", // Fighters (also treated as drones for damage logging)
+            "Tyrfing", "Einherji", "Gram", "Mantico", "Cyclops", "Ragnarok", // Named Fighters
+            "Ecm drone", "Sensor Dampening Drone", "Target Painter Drone", "Tracking Disruptor Drone", // EWAR Drones
+            "Berserker TP-900", "Acolyte TD-300", "Hammerhead SD-600", "Wasp EV-600"
+        ]);
+
+        let allShipDamageData = {}; 
+        let allDroneDamageData = {}; 
+        let globalCombatDurationSeconds = 0; 
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const totalEnemyDamageResultElement = document.getElementById('totalShipDamageResult');
+            const totalDroneDamageResultElement = document.getElementById('totalDroneDamageResult');
+            const globalCombatDurationElement = document.getElementById('globalCombatDuration');
+            const shipDamageDetailsListElement = document.getElementById('shipDamageDetailsList');
+            const droneDamageDetailsListElement = document.getElementById('droneDamageDetailsList');
+            const selectedEnemiesListElement = document.getElementById('selectedEnemiesList');
+            const loadingMessageElement = document.getElementById('loadingMessage');
+            const dpsMultiplierInput = document.getElementById('dpsMultiplierInput');
+
+
+            if (file) {
+                fileNameDisplay.textContent = `Archivo seleccionado: ${file.name}`;
+                totalEnemyDamageResultElement.textContent = 'Calculando...';
+                totalDroneDamageResultElement.textContent = 'Calculando...';
+                globalCombatDurationElement.textContent = 'Calculando...';
+                shipDamageDetailsListElement.innerHTML = '<li><span>Cargando detalles de naves...</span></li>';
+                droneDamageDetailsListElement.innerHTML = '<li><span>Cargando detalles de drones...</span></li>';
+                selectedEnemiesListElement.innerHTML = '<li><span>(Usa el botón '+' para añadir enemigos aquí)</span></li>';
+                loadingMessageElement.textContent = 'Procesando archivo, por favor espera...';
+                
+                // Resetear totales de seleccionados al cargar un nuevo archivo
+                document.getElementById('totalSelectedDamage').textContent = 'Daño Total Seleccionado: 0';
+                document.getElementById('baseTotalSelectedDps').textContent = '0.00';
+                document.getElementById('finalTotalSelectedDps').textContent = '0.00';
+                document.getElementById('totalSelectedAvgDamage').textContent = 'Daño Promedio Total Seleccionado: 0.00';
+                dpsMultiplierInput.value = 1; // Reset multiplier to 1
+
+
+                const reader = new FileReader();
+
+                reader.onload = async function(e) { // Add async keyword
+                    const logContent = e.target.result;
+                    
+                    const result = await analizarDanioCompleto(logContent); // Await the parsing
+                    allShipDamageData = result.shipDamage;
+                    allDroneDamageData = result.droneDamage;
+                    globalCombatDurationSeconds = result.combatDuration;
+
+                    totalEnemyDamageResultElement.textContent = `El daño total de TODAS las naves enemigas es: ${result.totalShipDamage}`;
+                    totalDroneDamageResultElement.textContent = `El daño total de los Drones es: ${result.totalDroneDamage}`;
+                    globalCombatDurationElement.textContent = `Duración Total de Combate en Log: ${globalCombatDurationSeconds.toFixed(0)} segundos`; 
+                    
+                    displayDamageDetails(allShipDamageData, shipDamageDetailsListElement, 'nave', true);
+                    displayDamageDetails(allDroneDamageData, droneDamageDetailsListElement, 'drone', false);
+                    
+                    selectedEnemiesListElement.innerHTML = '<li><span>(Usa el botón '+' para añadir enemigos aquí)</span></li>'; 
+                    updateSelectedEnemiesTotals(); // Actualizar totales después de resetear la lista
+                    loadingMessageElement.textContent = '';
+                };
+
+                reader.onerror = function() {
+                    totalEnemyDamageResultElement.textContent = 'Error al leer el archivo.';
+                    totalDroneDamageResultElement.textContent = '';
+                    globalCombatDurationElement.textContent = '';
+                    shipDamageDetailsListElement.innerHTML = '<li><span>Error al leer el archivo.</span></li>';
+                    droneDamageDetailsListElement.innerHTML = '<li><span>Error al leer el archivo.</span></li>';
+                    selectedEnemiesListElement.innerHTML = '<li><span>Error al leer el archivo.</span></li>';
+                    fileNameDisplay.textContent = 'Ningún archivo seleccionado';
+                    loadingMessageElement.textContent = '';
+                    // Resetear totales de seleccionados en caso de error
+                    document.getElementById('totalSelectedDamage').textContent = 'Daño Total Seleccionado: 0';
+                    document.getElementById('baseTotalSelectedDps').textContent = '0.00';
+                    document.getElementById('finalTotalSelectedDps').textContent = '0.00';
+                    document.getElementById('totalSelectedAvgDamage').textContent = 'Daño Promedio Total Seleccionado: 0.00';
+                    dpsMultiplierInput.value = 1;
+                };
+
+                reader.readAsText(file);
+            } else {
+                fileNameDisplay.textContent = 'Ningún archivo seleccionado';
+                totalEnemyDamageResultElement.textContent = 'Selecciona un archivo para calcular el daño.';
+                totalDroneDamageResultElement.textContent = '';
+                globalCombatDurationElement.textContent = '';
+                shipDamageDetailsListElement.innerHTML = '<li><span>Carga un archivo para ver los detalles de naves.</span></li>';
+                droneDamageDetailsListElement.innerHTML = '<li><span>Carga un archivo para ver los detalles de drones.</span></li>';
+                selectedEnemiesListElement.innerHTML = '<li><span>(Usa el botón '+' para añadir enemigos aquí)</span></li>';
+                loadingMessageElement.textContent = '';
+                // Resetear totales de seleccionados si no hay archivo
+                document.getElementById('totalSelectedDamage').textContent = 'Daño Total Seleccionado: 0';
+                document.getElementById('baseTotalSelectedDps').textContent = '0.00';
+                document.getElementById('finalTotalSelectedDps').textContent = '0.00';
+                document.getElementById('totalSelectedAvgDamage').textContent = 'Daño Promedio Total Seleccionado: 0.00';
+                document.getElementById('dpsMultiplierInput').value = 1;
+            }
+        });
+
+        document.getElementById('dpsMultiplierInput').addEventListener('input', updateSelectedEnemiesTotals);
+
+
+        function parseTimestamp(logLine) {
+            const timeMatch = logLine.match(/\[ (\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}) \]/);
+            if (timeMatch && timeMatch[1]) {
+                const datePart = timeMatch[1].substring(0, 10).replace(/\./g, '-');
+                const timePart = timeMatch[1].substring(11);
+                return new Date(`${datePart}T${timePart}`);
+            }
+            return null;
+        }
+
+        async function analizarDanioCompleto(logContent) { // Made async for potential future heavy processing
+            let totalShipDamage = 0;
+            let totalDroneDamage = 0;
+            
+            const shipDamage = {}; 
+            const droneDamage = {}; 
+
+            let firstGlobalCombatTimestamp = null;
+            let lastGlobalCombatTimestamp = null;
+
+            const combatPattern = /\[ (\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}) \] \(combat\) <color=0xffcc0000><b>(\d+)<\/b> <color=0x77ffffff><font size=10>from<\/font> <b><color=0xffffffff>(.+?)<\/b><font size=10><color=0x77ffffff> - (.+?) -/;
+
+            // Using contentFetchId to access the file content directly
+            // Removed previous fetch/read logic, as user provided file directly in context.
+            // If you are testing this code in a local environment, you'll need to
+            // ensure the logContent is correctly passed from FileReader as in the previous version.
+            // For now, I'm assuming logContent comes correctly.
+            
+            const lines = logContent.splitlines();
+
+            for (const line of lines) {
+                const match = combatPattern.exec(line);
+                if (match) {
+                    const timestamp = parseTimestamp(line);
+                    const danio = parseInt(match[2], 10);
+                    const atacanteCompleto = match[3]; 
+                    const tipoArmaODrone = match[4]; 
+
+                    if (isNaN(danio)) {
+                        console.warn(`No se pudo parsear el daño de la línea: ${line}`);
+                        continue;
+                    }
+
+                    if (timestamp) { 
+                        if (!firstGlobalCombatTimestamp || timestamp < firstGlobalCombatTimestamp) {
+                            firstGlobalCombatTimestamp = timestamp;
+                        }
+                        if (!lastGlobalCombatTimestamp || timestamp > lastGlobalCombatTimestamp) {
+                            lastGlobalCombatTimestamp = timestamp;
+                        }
+                    }
+
+                    let nombrePiloto = atacanteCompleto;
+                    let tipoNave = 'N/A'; 
+
+                    const shipTypeMatch = atacanteCompleto.match(/\(([^)]+)\)$/); 
+                    if (shipTypeMatch && shipTypeMatch[1]) {
+                        tipoNave = shipTypeMatch[1];
+                        nombrePiloto = atacanteCompleto.substring(0, atacanteCompleto.lastIndexOf('(')).trim();
+                    }
+
+                    let isDrone = false;
+                    for (const droneName of EVE_DRONES) {
+                        if (tipoArmaODrone.includes(droneName)) {
+                            isDrone = true;
+                            break;
+                        }
+                    }
+                    
+                    if (isDrone) {
+                        totalDroneDamage += danio;
+                        const droneKey = `${nombrePiloto} (${tipoArmaODrone})`; 
+
+                        if (droneDamage[droneKey]) {
+                            droneDamage[droneKey].totalDamage += danio;
+                            droneDamage[droneKey].hits += 1;
+                            if (danio > droneDamage[droneKey].maxHit) {
+                                droneDamage[droneKey].maxHit = danio;
+                            }
+                            if (timestamp && (!droneDamage[droneKey].firstHitTime || timestamp < droneDamage[droneKey].firstHitTime)) droneDamage[droneKey].firstHitTime = timestamp;
+                            if (timestamp && (!droneDamage[droneKey].lastHitTime || timestamp > droneDamage[droneKey].lastHitTime)) droneDamage[droneKey].lastHitTime = timestamp;
+                        } else {
+                            droneDamage[droneKey] = { 
+                                totalDamage: danio, 
+                                hits: 1, 
+                                maxHit: danio,
+                                firstHitTime: timestamp,
+                                lastHitTime: timestamp,
+                                controllerName: nombrePiloto,
+                                tipoArmaODrone: tipoArmaODrone 
+                            };
+                        }
+                    } else { // It's a ship
+                        totalShipDamage += danio;
+                        if (shipDamage[nombrePiloto]) {
+                            shipDamage[nombrePiloto].totalDamage += danio;
+                            shipDamage[nombrePiloto].hits += 1;
+                            if (danio > shipDamage[nombrePiloto].maxHit) {
+                                shipDamage[nombrePiloto].maxHit = danio;
+                            }
+                            shipDamage[nombrePiloto].weaponType = tipoArmaODrone; 
+                            shipDamage[nombrePiloto].shipType = tipoNave; 
+                            if (timestamp && (!shipDamage[nombrePiloto].firstHitTime || timestamp < shipDamage[nombrePiloto].firstHitTime)) shipDamage[nombrePiloto].firstHitTime = timestamp;
+                            if (timestamp && (!shipDamage[nombrePiloto].lastHitTime || timestamp > shipDamage[nombrePiloto].lastHitTime)) shipDamage[nombrePiloto].lastHitTime = timestamp;
+                        } else {
+                            shipDamage[nombrePiloto] = { 
+                                totalDamage: danio, 
+                                hits: 1, 
+                                maxHit: danio,
+                                shipType: tipoNave, 
+                                weaponType: tipoArmaODrone,
+                                firstHitTime: timestamp,
+                                lastHitTime: timestamp
+                            };
+                        }
+                    }
+                }
+            }
+
+            let combatDuration = 0; 
+            if (firstGlobalCombatTimestamp && lastGlobalCombatTimestamp) {
+                combatDuration = (lastGlobalCombatTimestamp.getTime() - firstGlobalCombatTimestamp.getTime()) / 1000;
+                if (combatDuration < 1) combatDuration = 1; 
+            }
+
+            return { shipDamage, droneDamage, totalShipDamage, totalDroneDamage, combatDuration };
+        }
+
+        // Helper function to calculate active DPS for an entity
+        function calculateActiveDps(entityData) {
+            if (!entityData || !entityData.firstHitTime || !entityData.lastHitTime || entityData.totalDamage === 0) {
+                return 0;
+            }
+            const durationMs = entityData.lastHitTime.getTime() - entityData.firstHitTime.getTime();
+            let durationSeconds = durationMs / 1000;
+            if (durationSeconds < 1) { 
+                durationSeconds = 1;
+            }
+            return (entityData.totalDamage / durationSeconds); 
+        }
+
+        // Helper function to calculate average damage per hit for an entity
+        function calculateAverageDamage(entityData) {
+            if (!entityData || entityData.totalDamage === 0 || entityData.hits === 0) {
+                return 0;
+            }
+            return (entityData.totalDamage / entityData.hits);
+        }
+
+        function displayDamageDetails(damageMap, targetListElement, type, addBtn = false) {
+            targetListElement.innerHTML = ''; 
+
+            const sortedItems = Object.entries(damageMap).sort(([, a], [, b]) => b.totalDamage - a.totalDamage);
+
+            if (sortedItems.length === 0) {
+                targetListElement.innerHTML = `<li><span>No se encontró daño de ${type}s.</span></li>`;
+                return;
+            }
+
+            sortedItems.forEach(([name, data]) => {
+                const listItem = document.createElement('li');
+                const avgDamage = calculateAverageDamage(data).toFixed(1); 
+                const dps = calculateActiveDps(data).toFixed(2); 
+
+                if (type === 'nave') {
+                    listItem.innerHTML = `
+                        <div class="main-row">
+                            <span class="name-weapon">${name}</span>
+                            <span class="total-damage">${data.totalDamage}</span>
+                        </div>
+                        <span class="ship-type">(${data.shipType} - ${data.weaponType})</span>
+                        <div class="stats-row">
+                            <span class="stat-item">Mayor golpe: ${data.maxHit}</span>
+                            <span class="stat-item">Promedio: ${avgDamage}</span>
+                            <span class="stat-item">Golpes: ${data.hits}</span>
+                            <span class="stat-item">DPS: ${dps}</span>
+                        </div>
+                    `;
+                    if (addBtn) {
+                        const addButton = document.createElement('button');
+                        addButton.classList.add('add-remove-btn');
+                        addButton.textContent = '+';
+                        addButton.title = 'Añadir a enemigos seleccionados';
+                        addButton.onclick = () => addEnemyToSelected(name);
+                        listItem.appendChild(addButton);
+                    }
+                } else { // Type is drone
+                    listItem.innerHTML = `
+                        <div class="main-row">
+                            <span class="name-weapon">${name}</span>
+                            <span class="total-damage">${data.totalDamage}</span>
+                        </div>
+                        <span class="ship-type">(Drone)</span>
+                        <div class="stats-row">
+                            <span class="stat-item">Mayor golpe: ${data.maxHit}</span>
+                            <span class="stat-item">Promedio: ${avgDamage}</span>
+                            <span class="stat-item">Golpes: ${data.hits}</span>
+                            <span class="stat-item">DPS: ${dps}</span>
+                        </div>
+                    `;
+                }
+                targetListElement.appendChild(listItem);
+            });
+        }
+
+        function addEnemyToSelected(enemyName) {
+            const selectedEnemiesListElement = document.getElementById('selectedEnemiesList');
+
+            const enemyData = allShipDamageData[enemyName];
+            if (!enemyData) {
+                alert(`No se encontraron datos para el enemigo: ${enemyName}`);
+                return;
+            }
+
+            if (document.getElementById(`selected-${enemyName}`)) {
+                alert(`"${enemyName}" ya está en la lista de enemigos seleccionados.`);
+                return;
+            }
+            
+            if (selectedEnemiesListElement.children.length === 1 && selectedEnemiesListElement.children[0].textContent.includes('Usa el botón')) {
+                selectedEnemiesListElement.innerHTML = '';
+            }
+
+            const listItem = document.createElement('li');
+            listItem.id = `selected-${enemyName}`; 
+
+            let combinedTotalDamage = enemyData.totalDamage;
+            let combinedHits = enemyData.hits;
+            let combinedMaxHit = enemyData.maxHit;
+
+            let combinedFirstHitTime = enemyData.firstHitTime;
+            let combinedLastHitTime = enemyData.lastHitTime;
+
+            const associatedDrones = Object.values(allDroneDamageData).filter(drone => drone.controllerName === enemyName);
+            associatedDrones.forEach(drone => {
+                combinedTotalDamage += drone.totalDamage;
+                combinedHits += drone.hits;
+                if (drone.maxHit > combinedMaxHit) {
+                    combinedMaxHit = drone.maxHit;
+                }
+                if (drone.firstHitTime && (!combinedFirstHitTime || drone.firstHitTime < combinedFirstHitTime)) {
+                    combinedFirstHitTime = drone.firstHitTime;
+                }
+                if (drone.lastHitTime && (!combinedLastHitTime || drone.lastHitTime > combinedLastHitTime)) {
+                    combinedLastHitTime = drone.lastHitTime;
+                }
+            });
+
+            // Calculate combined average damage for the ship + its drones. This value is used for the individual item display AND for summing in the total.
+            const combinedAvgDamage = (combinedHits > 0) ? (combinedTotalDamage / combinedHits) : 0; 
+            
+            let combinedDps = 0;
+            if (combinedFirstHitTime && combinedLastHitTime) {
+                const combinedDurationMs = combinedLastHitTime.getTime() - combinedFirstHitTime.getTime();
+                let combinedDurationSeconds = combinedDurationMs / 1000;
+                if (combinedDurationSeconds < 1) {
+                    combinedDurationSeconds = 1;
+                }
+                combinedDps = (combinedTotalDamage / combinedDurationSeconds); 
+            }
+            
+            // Store raw damage, DPS, and avg damage values as data attributes for easy retrieval
+            listItem.dataset.totalDamage = combinedTotalDamage;
+            listItem.dataset.dps = combinedDps;
+            listItem.dataset.avgDamage = combinedAvgDamage; // Storing the combined average damage here
+
+            listItem.innerHTML = `
+                <div class="main-row">
+                    <span class="name-weapon">${enemyName}</span>
+                    <span class="total-damage">${combinedTotalDamage}</span>
+                </div>
+                <span class="ship-type">(${enemyData.shipType} - ${enemyData.weaponType})</span>
+                <div class="stats-row">
+                    <span class="stat-item">Mayor golpe: ${combinedMaxHit}</span>
+                    <span class="stat-item">Promedio: ${combinedAvgDamage.toFixed(1)}</span>
+                    <span class="stat-item">Golpes: ${combinedHits}</span>
+                    <span class="stat-item">DPS: ${combinedDps.toFixed(2)}</span>
+                </div>
+            `;
+
+            const removeButton = document.createElement('button');
+            removeButton.classList.add('add-remove-btn');
+            removeButton.textContent = '-';
+            removeButton.title = 'Eliminar de seleccionados';
+            removeButton.onclick = () => removeEnemyFromSelected(enemyName);
+            listItem.appendChild(removeButton);
+
+            selectedEnemiesListElement.appendChild(listItem);
+            updateSelectedEnemiesTotals(); 
+        }
+
+        function removeEnemyFromSelected(enemyName) {
+            const listItemToRemove = document.getElementById(`selected-${enemyName}`);
+            if (listItemToRemove) {
+                listItemToRemove.remove();
+                const selectedEnemiesListElement = document.getElementById('selectedEnemiesList');
+                if (selectedEnemiesListElement.children.length === 0) {
+                    selectedEnemiesListElement.innerHTML = '<li><span>(Usa el botón '+' para añadir enemigos aquí)</span></li>';
+                }
+            }
+            updateSelectedEnemiesTotals(); 
+        }
+
+        function updateSelectedEnemiesTotals() {
+            const selectedEnemiesListElement = document.getElementById('selectedEnemiesList');
+            const totalSelectedDamageElement = document.getElementById('totalSelectedDamage');
+            const baseTotalSelectedDpsElement = document.getElementById('baseTotalSelectedDps'); // New element to show raw DPS sum
+            const dpsMultiplierInput = document.getElementById('dpsMultiplierInput');
+            const finalTotalSelectedDpsElement = document.getElementById('finalTotalSelectedDps'); // New element for multiplied DPS
+            const totalSelectedAvgDamageElement = document.getElementById('totalSelectedAvgDamage'); 
+
+            let sumTotalDamage = 0;
+            let sumBaseDps = 0; // Renamed to sumBaseDps to clarify it's the sum before multiplication
+            let sumOfIndividualAvgDamage = 0; 
+
+            const selectedItems = Array.from(selectedEnemiesListElement.children).filter(li => !li.textContent.includes('Usa el botón'));
+
+            selectedItems.forEach(item => {
+                sumTotalDamage += parseFloat(item.dataset.totalDamage || 0);
+                sumBaseDps += parseFloat(item.dataset.dps || 0); // Sum the base DPS values
+                sumOfIndividualAvgDamage += parseFloat(item.dataset.avgDamage || 0); 
+            });
+
+            // Get the multiplier value, default to 1 if invalid
+            const multiplier = parseFloat(dpsMultiplierInput.value) || 1;
+            const finalCalculatedDps = sumBaseDps * multiplier;
+
+            totalSelectedDamageElement.textContent = `Daño Total Seleccionado: ${sumTotalDamage.toFixed(0)}`;
+            baseTotalSelectedDpsElement.textContent = `${sumBaseDps.toFixed(2)}`; // Display the raw sum of DPS
+            finalTotalSelectedDpsElement.textContent = `${finalCalculatedDps.toFixed(2)}`; // Display the multiplied DPS
+            totalSelectedAvgDamageElement.textContent = `Daño Promedio Total Seleccionado: ${sumOfIndividualAvgDamage.toFixed(2)}`; 
+        }
+        
+        String.prototype.splitlines = function() {
+            return this.split(/\r?\n/);
+        };
+    </script>
+</body>
+</html>
